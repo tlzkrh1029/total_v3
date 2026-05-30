@@ -80,6 +80,7 @@ def create_relative_candle(df_base, df_compare, title=""):
 # ================== 📉 차트 데이터 전담: CryptoCompare API ==================
 @st.cache_data(ttl=600)
 def fetch_futures_ohlcv(symbol):
+    # --- 1차 시도: CryptoCompare API ---
     try:
         url = "https://min-api.cryptocompare.com/data/v2/histoday"
         params = {
@@ -93,26 +94,44 @@ def fetch_futures_ohlcv(symbol):
         resp = requests.get(url, params=params, timeout=10)
         data = resp.json()
         
-        if data.get("Response") != "Success":
-            return None
-            
-        raw_candles = data["Data"]["Data"]
-        if not raw_candles:
-            return None
-            
-        df = pd.DataFrame(raw_candles)
-        
-        # 타임스탬프 단위를 날짜형식 데이터로 변환 후 이름 매칭
-        df['date'] = pd.to_datetime(df['time'], unit='s')
-        df = df.rename(columns={'volumeto': 'volume'}) 
-        
-        # 이동평균선(SMA) 연산 로직
-        for p in [50, 100, 150, 200, 365]:
-            df[f'SMA{p}'] = df['close'].rolling(p).mean()
-            
-        return df
+        if data.get("Response") == "Success" and data.get("Data", {}).get("Data"):
+            raw_candles = data["Data"]["Data"]
+            df = pd.DataFrame(raw_candles)
+            if not df.empty and 'close' in df.columns:
+                df['date'] = pd.to_datetime(df['time'], unit='s')
+                df = df.rename(columns={'volumeto': 'volume'}) 
+                
+                # 이동평균선(SMA) 연산
+                for p in [50, 100, 150, 200, 365]:
+                    df[f'SMA{p}'] = df['close'].rolling(p).mean()
+                return df
     except Exception:
-        return None
+        pass  # 크립토컴페어 실패 시 에러를 내지 않고 2차 시도(야후)로 넘어감
+
+    # --- 2차 시도 (백업): Yahoo Finance (yfinance) ---
+    try:
+        import yfinance as yf # 함수 내에서 안전하게 임포트
+        ticker_symbol = f"{symbol.upper()}-USD"
+        ticker = yf.Ticker(ticker_symbol)
+        
+        df_raw = ticker.history(period="400d", interval="1d")
+        
+        if not df_raw.empty:
+            df = df_raw.reset_index()
+            df = df.rename(columns={
+                'Date': 'date', 'Open': 'open', 'High': 'high', 
+                'Low': 'low', 'Close': 'close', 'Volume': 'volume'
+            })
+            
+            # 이동평균선(SMA) 연산
+            for p in [50, 100, 150, 200, 365]:
+                df[f'SMA{p}'] = df['close'].rolling(p).mean()
+            return df
+    except Exception:
+        pass
+
+    # 두 곳 모두 데이터가 없으면 None 반환
+    return None
 
 # ================== 차트 렌더링 공통 컴포넌트 ==================
 def render_mini_charts(symbol, key_suffix):
