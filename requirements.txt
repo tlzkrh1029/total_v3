@@ -1,9 +1,4 @@
 streamlit
 pandas
 requests
-ccxt
 plotly
-python-dotenv
-matplotlib
-seaborn          # background_gradient가 더 안정적으로 작동
-yfinance
