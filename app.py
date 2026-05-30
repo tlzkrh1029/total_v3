@@ -7,7 +7,7 @@ from collections import defaultdict
 import plotly.graph_objects as go
 
 st.set_page_config(page_title="CMC 카테고리 분석", layout="wide")
-st.title("🔥 CoinMarketCap - 카테고리별 24h 상승률 순위 + 미니 차트 (통합 시세 데이터)")
+st.title("🔥 CoinMarketCap - 정범석 카테고리별 24h 상승률 순위 + 미니 차트 (통합 시세 데이터) 정범석")
 
 # ================== 🔑 API 키 설정 ==================
 # 1. 코인마켓캡 API 설정
