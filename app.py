@@ -133,7 +133,7 @@ def render_mini_charts(symbol, key_suffix):
                     if df_btc is not None:
                         st.plotly_chart(create_relative_candle(df, df_btc, "BTC Relative"), use_container_width=True, key=f"btc_{key_suffix}_{symbol}")
             else:
-                st.warning(f"{symbol} 선물 데이터를 바이낸스에서 찾을 수 없습니다.")
+                st.warning(f"{symbol} 차트 데이터를 찾을 수 없습니다.")
     except Exception as e:
         st.error(f"차트 불러오기 실패: {e}")
 
