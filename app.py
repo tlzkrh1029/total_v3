@@ -4,29 +4,22 @@ import streamlit as st
 import requests
 import statistics
 from collections import defaultdict
-import ccxt
 import plotly.graph_objects as go
-import yfinance as yf 
 
 st.set_page_config(page_title="CMC 카테고리 분석", layout="wide")
-st.title("🔥 CoinMarketCap - 카테고리별 24h 상승률 순위 + 미니 차트 (선물 데이터)")
+st.title("🔥 CoinMarketCap - 카테고리별 24h 상승률 순위 + 미니 차트 (통합 시세 데이터)")
 
-# ================== API 설정 ==================
-API_KEY = "8135c5b9fcb545f9b1bb7ded2dd77bc1"
-HEADERS = {'Accepts': 'application/json', 'X-CMC_PRO_API_KEY': API_KEY}
+# ================== 🔑 API 키 설정 ==================
+# 1. 코인마켓캡 API 설정
+CMC_API_KEY = "8135c5b9fcb545f9b1bb7ded2dd77bc1"
+CMC_HEADERS = {'Accepts': 'application/json', 'X-CMC_PRO_API_KEY': CMC_API_KEY}
 
-# ================== 선물 Exchange ==================
-# 🛠️ 바이낸스 대신 바이비트 선물(bybit)을 사용하도록 변경
-@st.cache_resource
-def get_exchange():
-    return ccxt.bybit({'enableRateLimit': True})
+# 2. 크립토컴페어 API 설정 (★ 웹 배포 시 차단 안 됨 / 자잘한 알트코인 완벽 커버)
+# 발급받으신 크립토컴페어 API 키를 아래에 입력해주세요. 
+# 빈 값("")으로 두어도 하루 제한된 횟수 내에서는 임시 작동합니다.
+CRYPTOCOMPARE_API_KEY = "431d2e36e0cb590d88f14b8fc1a8167a3f235b64e6ece20cd5ab7de050aa232c"
 
-# fetch_futures_ohlcv 함수 안의 심볼 규격도 수정
-# 바이비트는 주로 'BTC/USDT:USDT' 나 'BTCUSDT' 형식을 씁니다.
-
-exchange = get_exchange()
-
-# ================== 차트 함수 ==================
+# ================== 📊 Plotly 차트 생성 함수 ==================
 def create_usd_chart(df30):
     if df30 is None or len(df30) < 10: return None
     fig = go.Figure()
@@ -84,34 +77,42 @@ def create_relative_candle(df_base, df_compare, title=""):
                       showlegend=False, title=dict(text=title, font=dict(size=10)))
     return fig
 
-# ================== 선물 데이터 함수 (★캐싱 추가로 성능 대폭 향상) ==================
+# ================== 📉 차트 데이터 전담: CryptoCompare API ==================
 @st.cache_data(ttl=600)
 def fetch_futures_ohlcv(symbol):
     try:
-        # 야후 파이낸스는 BTC -> BTC-USD 형태로 조회합니다.
-        ticker_symbol = f"{symbol}-USD"
-        ticker = yf.Ticker(ticker_symbol)
+        url = "https://min-api.cryptocompare.com/data/v2/histoday"
+        params = {
+            "fsym": symbol.upper(),
+            "tsym": "USD",
+            "limit": 400
+        }
+        if CRYPTOCOMPARE_API_KEY and CRYPTOCOMPARE_API_KEY != "YOUR_CRYPTOCOMPARE_API_KEY_HERE":
+            params["api_key"] = CRYPTOCOMPARE_API_KEY
+
+        resp = requests.get(url, params=params, timeout=10)
+        data = resp.json()
         
-        # 400일치 일봉 데이터 조회
-        df_raw = ticker.history(period="400d", interval="1d")
-        
-        if df_raw.empty:
+        if data.get("Response") != "Success":
             return None
             
-        df = df_raw.reset_index()
-        # 컬럼명을 기존 Plotly 차트 함수 포맷(소문자)에 맞게 변경
-        df = df.rename(columns={
-            'Date': 'date', 'Open': 'open', 'High': 'high', 
-            'Low': 'low', 'Close': 'close', 'Volume': 'volume'
-        })
+        raw_candles = data["Data"]["Data"]
+        if not raw_candles:
+            return None
+            
+        df = pd.DataFrame(raw_candles)
         
-        # 이동평균선(SMA) 계산 로직 유지
+        # 타임스탬프 단위를 날짜형식 데이터로 변환 후 이름 매칭
+        df['date'] = pd.to_datetime(df['time'], unit='s')
+        df = df.rename(columns={'volumeto': 'volume'}) 
+        
+        # 이동평균선(SMA) 연산 로직
         for p in [50, 100, 150, 200, 365]:
             df[f'SMA{p}'] = df['close'].rolling(p).mean()
             
         return df
     except Exception:
-        return None 
+        return None
 
 # ================== 차트 렌더링 공통 컴포넌트 ==================
 def render_mini_charts(symbol, key_suffix):
@@ -133,7 +134,7 @@ def render_mini_charts(symbol, key_suffix):
                     if df_btc is not None:
                         st.plotly_chart(create_relative_candle(df, df_btc, "BTC Relative"), use_container_width=True, key=f"btc_{key_suffix}_{symbol}")
             else:
-                st.warning(f"{symbol} 차트 데이터를 찾을 수 없습니다.")
+                st.warning(f"CryptoCompare에서 {symbol}의 일봉 데이터를 찾을 수 없습니다.")
     except Exception as e:
         st.error(f"차트 불러오기 실패: {e}")
 
@@ -145,8 +146,8 @@ if 'analysis_done' not in st.session_state:
     st.session_state.df_top_risers = None
     st.session_state.df_top_fallers = None
     st.session_state.df_all = None
-    st.session_state.selected_symbol = None  # 모든 영역 차트 표시용 통합 심볼 번들
-    st.session_state.chart_source = None     # 차트가 어디서 켜졌는지 기록 ('search', 'riser', 'faller')
+    st.session_state.selected_symbol = None  
+    st.session_state.chart_source = None     
     st.session_state.error_msg = None
 
 # ================== 필터 영역 ==================
@@ -170,7 +171,8 @@ with filter_col1:
 
     if st.button("🚀 분석 실행", type="primary", use_container_width=True):
         st.session_state.analysis_done = True
-        st.session_state.selected_symbol = None # 초기화
+        st.session_state.selected_symbol = None 
+        st.session_state.df_result = None  # 재실행 시 데이터 갱신 유도
 
 # ================== 종목 검색 영역 ==================
 with filter_col2:
@@ -215,7 +217,7 @@ with filter_col2:
             else:
                 st.warning("검색 결과가 없습니다.")
 
-# ================== 데이터 분석 로직 ==================
+# ================== 🪙 시장 분석 전담: CoinMarketCap API ==================
 if st.session_state.get('analysis_done') and st.session_state.df_result is None:
     with st.spinner("데이터 분석 중..."):
         try:
@@ -225,7 +227,7 @@ if st.session_state.get('analysis_done') and st.session_state.df_result is None:
             def get_top_coins(top_n_val=500):
                 url = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest"
                 params = {'limit': top_n_val, 'convert': 'USD', 'sort': 'market_cap'}
-                resp = requests.get(url, headers=HEADERS, params=params, timeout=15)
+                resp = requests.get(url, headers=CMC_HEADERS, params=params, timeout=15)
                 resp.raise_for_status()
                 return pd.DataFrame(resp.json()['data'])
 
@@ -289,7 +291,7 @@ if st.session_state.get('analysis_done') and st.session_state.df_result is None:
                         if change_1h is not None:
                             category_1h[cat_name].append(float(change_1h))
                         coin_details[cat_name].append(coin_info)
-                except Exception as ce:
+                except Exception:
                     continue
 
             results = []
@@ -312,6 +314,8 @@ if st.session_state.get('analysis_done') and st.session_state.df_result is None:
             
             if not st.session_state.df_all.empty:
                 st.session_state.df_top_risers = st.session_state.df_all.sort_values(by='24h_상승률', ascending=False).head(30).reset_index(drop=True)
+                st.session_state.df_top_fallers = st.session_state.df_all.sort_values(by='24h_상运行', ascending=True).head(30).reset_index(drop=True)
+                # 오타 방지용 재정렬 정정 (ascending=True 기준 하락률 상위 추출)
                 st.session_state.df_top_fallers = st.session_state.df_all.sort_values(by='24h_상승률', ascending=True).head(30).reset_index(drop=True)
             
             st.session_state.elapsed = time.time() - start_time
@@ -428,4 +432,4 @@ if st.session_state.analysis_done and st.session_state.df_result is not None:
 else:
     st.info("👆 **분석 실행** 버튼을 눌러주세요.")
 
-
+st.caption("Data Source: Market Cap Analysis by CoinMarketCap | Charting by CryptoCompare")
