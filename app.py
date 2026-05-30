@@ -313,9 +313,10 @@ if st.session_state.get('analysis_done') and st.session_state.df_result is None:
             st.session_state.df_all = pd.DataFrame(top_coins_list)
             
             if not st.session_state.df_all.empty:
+                # 상승률 상위 30개 (내림차순 정렬)
                 st.session_state.df_top_risers = st.session_state.df_all.sort_values(by='24h_상승률', ascending=False).head(30).reset_index(drop=True)
-                st.session_state.df_top_fallers = st.session_state.df_all.sort_values(by='24h_상运行', ascending=True).head(30).reset_index(drop=True)
-                # 오타 방지용 재정렬 정정 (ascending=True 기준 하락률 상위 추출)
+                
+                # 하락률 상위 30개 (오름차순 정렬 - ★ 이 부분을 아래 코드로 정확히 고쳐주세요)
                 st.session_state.df_top_fallers = st.session_state.df_all.sort_values(by='24h_상승률', ascending=True).head(30).reset_index(drop=True)
             
             st.session_state.elapsed = time.time() - start_time
@@ -404,7 +405,7 @@ if st.session_state.analysis_done and st.session_state.df_result is not None:
 
         # ---- 하락률 Top 30 ----
         st.subheader("📉 24h 하락률 Top 30")
-        df_fallers = st.session_state.df_top_fallers
+        df_fallers = st.session_state.get('df_top_fallers', pd.DataFrame())
         if not df_fallers.empty:
             display_cols = ['종목명', '심볼', '주요_카테고리', '1h_상승률', '24h_상승률', '/btc_1h', '/btc_24h', '/eth_1h', '/eth_24h']
             st.dataframe(
