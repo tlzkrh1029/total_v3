@@ -428,4 +428,4 @@ if st.session_state.analysis_done and st.session_state.df_result is not None:
 else:
     st.info("👆 **분석 실행** 버튼을 눌러주세요.")
 
-st.caption("Left: 카테고리 분석 | Right: 상승/하락별 독립 차트 출력 대응")
+
