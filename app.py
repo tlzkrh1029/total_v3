@@ -6,6 +6,7 @@ import statistics
 from collections import defaultdict
 import ccxt
 import plotly.graph_objects as go
+import yfinance as yf 
 
 st.set_page_config(page_title="CMC 카테고리 분석", layout="wide")
 st.title("🔥 CoinMarketCap - 카테고리별 24h 상승률 순위 + 미니 차트 (선물 데이터)")
@@ -84,20 +85,33 @@ def create_relative_candle(df_base, df_compare, title=""):
     return fig
 
 # ================== 선물 데이터 함수 (★캐싱 추가로 성능 대폭 향상) ==================
-@st.cache_data(ttl=300)
-def fetch_futures_ohlcv(symbol, limit=400):
-    _exchange = get_exchange()
-    for target_symbol in [f"{symbol}/USDT:USDT", f"{symbol}/USDT"]:
-        try:
-            ohlcv = _exchange.fetch_ohlcv(target_symbol, timeframe='1d', limit=limit)
-            df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-            df['date'] = pd.to_datetime(df['timestamp'], unit='ms')
-            for p in [50, 100, 150, 200, 365]:
-                df[f'SMA{p}'] = df['close'].rolling(p).mean()
-            return df
-        except Exception:
-            continue
-    return None
+@st.cache_data(ttl=600)
+def fetch_futures_ohlcv(symbol):
+    try:
+        # 야후 파이낸스는 BTC -> BTC-USD 형태로 조회합니다.
+        ticker_symbol = f"{symbol}-USD"
+        ticker = yf.Ticker(ticker_symbol)
+        
+        # 400일치 일봉 데이터 조회
+        df_raw = ticker.history(period="400d", interval="1d")
+        
+        if df_raw.empty:
+            return None
+            
+        df = df_raw.reset_index()
+        # 컬럼명을 기존 Plotly 차트 함수 포맷(소문자)에 맞게 변경
+        df = df.rename(columns={
+            'Date': 'date', 'Open': 'open', 'High': 'high', 
+            'Low': 'low', 'Close': 'close', 'Volume': 'volume'
+        })
+        
+        # 이동평균선(SMA) 계산 로직 유지
+        for p in [50, 100, 150, 200, 365]:
+            df[f'SMA{p}'] = df['close'].rolling(p).mean()
+            
+        return df
+    except Exception:
+        return None 
 
 # ================== 차트 렌더링 공통 컴포넌트 ==================
 def render_mini_charts(symbol, key_suffix):
