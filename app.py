@@ -15,23 +15,13 @@ API_KEY = "8135c5b9fcb545f9b1bb7ded2dd77bc1"
 HEADERS = {'Accepts': 'application/json', 'X-CMC_PRO_API_KEY': API_KEY}
 
 # ================== 선물 Exchange ==================
-# 기존 코드
+# 🛠️ 바이낸스 대신 바이비트 선물(bybit)을 사용하도록 변경
 @st.cache_resource
 def get_exchange():
-    return ccxt.binanceusdm({'enableRateLimit': True})
+    return ccxt.bybit({'enableRateLimit': True})
 
-# 🛠️ 수정 코드
-@st.cache_resource
-def get_exchange():
-    return ccxt.binanceusdm({
-        'enableRateLimit': True,
-        'urls': {
-            'api': {
-                'public': 'https://data.binance.com/api/v3',
-                'fapi': 'https://fapi.binance.com' # 선물 도메인도 명시적으로 지정 가능
-            }
-        }
-    })
+# fetch_futures_ohlcv 함수 안의 심볼 규격도 수정
+# 바이비트는 주로 'BTC/USDT:USDT' 나 'BTCUSDT' 형식을 씁니다.
 
 exchange = get_exchange()
 
