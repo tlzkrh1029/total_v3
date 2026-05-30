@@ -104,13 +104,13 @@ def fetch_futures_ohlcv(symbol):
                 # 이동평균선(SMA) 연산
                 for p in [50, 100, 150, 200, 365]:
                     df[f'SMA{p}'] = df['close'].rolling(p).mean()
-                return df
+                return df, 'cc'  # 👈 데이터와 출처('cc')를 함께 반환
     except Exception:
-        pass  # 크립토컴페어 실패 시 에러를 내지 않고 2차 시도(야후)로 넘어감
+        pass
 
     # --- 2차 시도 (백업): Yahoo Finance (yfinance) ---
     try:
-        import yfinance as yf # 함수 내에서 안전하게 임포트
+        import yfinance as yf
         ticker_symbol = f"{symbol.upper()}-USD"
         ticker = yf.Ticker(ticker_symbol)
         
@@ -122,26 +122,58 @@ def fetch_futures_ohlcv(symbol):
                 'Date': 'date', 'Open': 'open', 'High': 'high', 
                 'Low': 'low', 'Close': 'close', 'Volume': 'volume'
             })
+            # yfinance 날짜 데이터에 시간대(timezone)가 섞여있을 수 있어 제거해 정합성을 맞춥니다.
+            df['date'] = pd.to_datetime(df['date']).dt.tz_localize(None)
             
             # 이동평균선(SMA) 연산
             for p in [50, 100, 150, 200, 365]:
                 df[f'SMA{p}'] = df['close'].rolling(p).mean()
-            return df
+            return df, 'yf'  # 👈 데이터와 출처('yf')를 함께 반환
     except Exception:
         pass
 
-    # 두 곳 모두 데이터가 없으면 None 반환
-    return None
+    return None, None
 
 # ================== 차트 렌더링 공통 컴포넌트 ==================
+def fetch_specific_source(symbol, source):
+    """지정된 소스('cc' 또는 'yf')로만 강제로 데이터를 긁어오는 헬퍼 함수"""
+    try:
+        if source == 'cc':
+            url = "https://min-api.cryptocompare.com/data/v2/histoday"
+            params = {"fsym": symbol.upper(), "tsym": "USD", "limit": 400}
+            if CRYPTOCOMPARE_API_KEY and CRYPTOCOMPARE_API_KEY != "YOUR_CRYPTOCOMPARE_API_KEY_HERE":
+                params["api_key"] = CRYPTOCOMPARE_API_KEY
+            resp = requests.get(url, params=params, timeout=10).json()
+            if resp.get("Response") == "Success" and resp.get("Data", {}).get("Data"):
+                df = pd.DataFrame(resp["Data"]["Data"])
+                df['date'] = pd.to_datetime(df['time'], unit='s')
+                df = df.rename(columns={'volumeto': 'volume'})
+                for p in [50, 100, 150, 200, 365]: df[f'SMA{p}'] = df['close'].rolling(p).mean()
+                return df
+        elif source == 'yf':
+            import yfinance as yf
+            df_raw = yf.Ticker(f"{symbol.upper()}-USD").history(period="400d", interval="1d")
+            if not df_raw.empty:
+                df = df_raw.reset_index().rename(columns={'Date': 'date', 'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close', 'Volume': 'volume'})
+                df['date'] = pd.to_datetime(df['date']).dt.tz_localize(None)
+                for p in [50, 100, 150, 200, 365]: df[f'SMA{p}'] = df['close'].rolling(p).mean()
+                return df
+    except Exception:
+        pass
+    return None
+
+
 def render_mini_charts(symbol, key_suffix):
     try:
         with st.spinner(f"{symbol} 차트 불러오는 중..."):
-            df = fetch_futures_ohlcv(symbol)
-            df_eth = fetch_futures_ohlcv("ETH")
-            df_btc = fetch_futures_ohlcv("BTC")
+            # 1. 대상 코인 조회 및 출처 파악 ('cc' 또는 'yf')
+            df, source = fetch_futures_ohlcv(symbol)
             
             if df is not None:
+                # 2. 메인 코인이 성공한 출처와 '동일한 출처'로 BTC, ETH 강제 조회!
+                df_eth = fetch_specific_source("ETH", source)
+                df_btc = fetch_specific_source("BTC", source)
+                
                 df30 = df.tail(30).copy()
                 c1, c2, c3 = st.columns(3)
                 with c1: 
@@ -149,11 +181,15 @@ def render_mini_charts(symbol, key_suffix):
                 with c2: 
                     if df_eth is not None:
                         st.plotly_chart(create_relative_candle(df, df_eth, "ETH Relative"), use_container_width=True, key=f"eth_{key_suffix}_{symbol}")
+                    else:
+                        st.caption("ETH 백업 데이터 부족")
                 with c3:
                     if df_btc is not None:
                         st.plotly_chart(create_relative_candle(df, df_btc, "BTC Relative"), use_container_width=True, key=f"btc_{key_suffix}_{symbol}")
+                    else:
+                        st.caption("BTC 백업 데이터 부족")
             else:
-                st.warning(f"CryptoCompare에서 {symbol}의 일봉 데이터를 찾을 수 없습니다.")
+                st.warning(f"데이터 소스에서 {symbol}의 일봉 데이터를 찾을 수 없습니다.")
     except Exception as e:
         st.error(f"차트 불러오기 실패: {e}")
 
