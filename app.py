@@ -7,7 +7,7 @@ from collections import defaultdict
 import plotly.graph_objects as go
 
 st.set_page_config(page_title="CMC 카테고리 분석", layout="wide")
-st.title("🔥 CoinMarketCap - ♥정범석♥ 카테고리별 24h 상승률 순위 + 미니 차트 (통합 시세 데이터) ♥우윳빛깔♥ 정범석")
+st.title("🔥 CoinMarketCap - 카테고리별 24h 상승률 순위 + 미니 차트 (통합 시세 데이터)")
 
 # ================== 🔑 API 키 설정 ==================
 # 1. 코인마켓캡 API 설정
@@ -209,7 +209,7 @@ if 'analysis_done' not in st.session_state:
 filter_col1, filter_col2 = st.columns([3, 5])
 
 with filter_col1:
-    st.subheader("🔍 김한빛 분석 필터")
+    st.subheader("🔍분석 필터")
     col_a, col_b = st.columns(2)
     with col_a:
         min_market_cap_input = st.text_input("최소 시가총액 (USD)", value="10,000,000")
@@ -224,7 +224,7 @@ with filter_col1:
     with col_d:
         min_coins_per_category = st.number_input("카테고리당 최소 코인 수", min_value=3, value=5)
 
-    if st.button("🚀 김경현 분석 실행", type="primary", use_container_width=True):
+    if st.button("🚀분석 실행", type="primary", use_container_width=True):
         st.session_state.analysis_done = True
         st.session_state.selected_symbol = None 
         st.session_state.df_result = None  # 재실행 시 데이터 갱신 유도
