@@ -508,9 +508,13 @@ if st.session_state.analysis_done and st.session_state.df_result is not None:
             left_col, right_col = st.columns([1, 1])
         
             with left_col:
-                # ... (왼쪽 카테고리 부분은 그대로 유지)
+                # ==================== 기존 왼쪽 코드 유지 ====================
+                # (여기에 원래 있던 left_col 안의 코드를 그대로 두세요)
+                # 만약 left_col 안에 코드가 없다면 아래 pass를 잠시 넣어두세요
+                pass
         
             with right_col:
+                # ==================== 오른쪽 컬럼 (수정된 부분) ====================
                 df_risers = st.session_state.df_top_risers
                 df_fallers = st.session_state.get('df_top_fallers', pd.DataFrame())
                 display_cols = ['종목명', '심볼', '주요_카테고리', '1h_상승률', '24h_상승률', '시가총액', '24h_거래량']
