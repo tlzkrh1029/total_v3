@@ -532,24 +532,24 @@ if st.session_state.analysis_done and st.session_state.df_result is not None:
                 # 만약 left_col 안에 코드가 없다면 아래 pass를 잠시 넣어두세요
                 pass
         
+           # ==================== 오른쪽 컬럼 ====================
             with right_col:
-                # ==================== 오른쪽 컬럼 (수정된 부분) ====================
                 df_risers = st.session_state.df_top_risers
                 df_fallers = st.session_state.get('df_top_fallers', pd.DataFrame())
                 display_cols = ['종목명', '심볼', '주요_카테고리', '1h_상승률', '24h_상승률', '시가총액', '24h_거래량']
-        
+            
                 # ---- 🚀 24h 상승률 Top 30 ----
                 st.subheader("🚀 24h 상승률 Top 30")
-        
+            
                 if not df_risers.empty:
                     st.dataframe(
                         style_crypto_table(df_risers[display_cols]),
-                        use_container_width=False,
-                        width=980,
-                        height=420,
+                        use_container_width=False,   # ← False 필수
+                        width=1050,                  # ← 원하는 가로폭 (1000~1100 추천)
+                        height=480,                  # ← 세로 높이
                         hide_index=True
                     )
-        
+            
                     st.markdown("**종목 클릭 → 아래에서 차트 확인**")
                     cols = st.columns(10)
                     for idx, row in df_risers.iterrows():
@@ -559,19 +559,19 @@ if st.session_state.analysis_done and st.session_state.df_result is not None:
                                 st.session_state.selected_symbol = symbol
                                 st.session_state.chart_source = 'riser'
                                 st.rerun()
-        
-                # ---- 📉 24h 하락률 Top 30 ----
+            
+                # ---- 📉 24h 하락률 Top 30 ---- (동일하게 적용)
                 st.subheader("📉 24h 하락률 Top 30")
-        
+            
                 if not df_fallers.empty:
                     st.dataframe(
                         style_crypto_table(df_fallers[display_cols]),
                         use_container_width=False,
-                        width=980,
-                        height=420,
+                        width=1050,
+                        height=480,
                         hide_index=True
                     )
-        
+            
                     st.markdown("**종목 클릭 → 아래에서 차트 확인**")
                     cols = st.columns(10)
                     for idx, row in df_fallers.iterrows():
