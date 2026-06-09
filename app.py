@@ -534,53 +534,53 @@ if st.session_state.analysis_done and st.session_state.df_result is not None:
         
            # ==================== 오른쪽 컬럼 ====================
             with right_col:
-                df_risers = st.session_state.df_top_risers
-                df_fallers = st.session_state.get('df_top_fallers', pd.DataFrame())
-                display_cols = ['종목명', '심볼', '주요_카테고리', '1h_상승률', '24h_상승률', '시가총액', '24h_거래량']
-            
-                # ---- 🚀 24h 상승률 Top 30 ----
                 st.subheader("🚀 24h 상승률 Top 30")
+                
+                if not st.session_state.df_top_risers.empty:
+                    # 컨테이너로 감싸서 폭 제어
+                    container = st.container()
+                    with container:
+                        st.dataframe(
+                            style_crypto_table(st.session_state.df_top_risers[display_cols]),
+                            use_container_width=False,
+                            width=1080,      # ← 여기서 조절
+                            height=480,      # ← 여기서 조절
+                            hide_index=True
+                        )
+                
+                st.markdown("**종목 클릭 → 아래에서 차트 확인**")
+                cols = st.columns(10)
+                for idx, row in st.session_state.df_top_risers.iterrows():
+                    symbol = row['심볼']
+                    with cols[idx % 10]:
+                        if st.button(symbol, key=f"rise_{symbol}_{idx}", use_container_width=True):
+                            st.session_state.selected_symbol = symbol
+                            st.session_state.chart_source = 'riser'
+                            st.rerun()
             
-                if not df_risers.empty:
-                    st.dataframe(
-                        style_crypto_table(df_risers[display_cols]),
-                        use_container_width=False,   # ← False 필수
-                        width=1050,                  # ← 원하는 가로폭 (1000~1100 추천)
-                        height=480,                  # ← 세로 높이
-                        hide_index=True
-                    )
-            
-                    st.markdown("**종목 클릭 → 아래에서 차트 확인**")
-                    cols = st.columns(10)
-                    for idx, row in df_risers.iterrows():
-                        symbol = row['심볼']
-                        with cols[idx % 10]:
-                            if st.button(symbol, key=f"rise_{symbol}_{idx}", use_container_width=True):
-                                st.session_state.selected_symbol = symbol
-                                st.session_state.chart_source = 'riser'
-                                st.rerun()
-            
-                # ---- 📉 24h 하락률 Top 30 ---- (동일하게 적용)
+                # 하락률도 동일하게
                 st.subheader("📉 24h 하락률 Top 30")
-            
-                if not df_fallers.empty:
-                    st.dataframe(
-                        style_crypto_table(df_fallers[display_cols]),
-                        use_container_width=False,
-                        width=1050,
-                        height=480,
-                        hide_index=True
-                    )
-            
-                    st.markdown("**종목 클릭 → 아래에서 차트 확인**")
-                    cols = st.columns(10)
-                    for idx, row in df_fallers.iterrows():
-                        symbol = row['심볼']
-                        with cols[idx % 10]:
-                            if st.button(symbol, key=f"fall_{symbol}_{idx}", use_container_width=True):
-                                st.session_state.selected_symbol = symbol
-                                st.session_state.chart_source = 'faller'
-                                st.rerun()
+                
+                if not st.session_state.df_top_fallers.empty:
+                    container2 = st.container()
+                    with container2:
+                        st.dataframe(
+                            style_crypto_table(st.session_state.df_top_fallers[display_cols]),
+                            use_container_width=False,
+                            width=1080,
+                            height=480,
+                            hide_index=True
+                        )
+                
+                st.markdown("**종목 클릭 → 아래에서 차트 확인**")
+                cols = st.columns(10)
+                for idx, row in st.session_state.df_top_fallers.iterrows():
+                    symbol = row['심볼']
+                    with cols[idx % 10]:
+                        if st.button(symbol, key=f"fall_{symbol}_{idx}", use_container_width=True):
+                            st.session_state.selected_symbol = symbol
+                            st.session_state.chart_source = 'faller'
+                            st.rerun()
                 # ==================== [여기까지 교체] ====================
 
         if st.session_state.selected_symbol and st.session_state.chart_source == 'faller':
