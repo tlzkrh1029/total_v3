@@ -511,7 +511,6 @@ if st.session_state.analysis_done and st.session_state.df_result is not None:
                 # ... (왼쪽 카테고리 부분은 그대로 유지)
         
             with right_col:
-                # === [수정된 부분 시작] ===
                 df_risers = st.session_state.df_top_risers
                 df_fallers = st.session_state.get('df_top_fallers', pd.DataFrame())
                 display_cols = ['종목명', '심볼', '주요_카테고리', '1h_상승률', '24h_상승률', '시가총액', '24h_거래량']
@@ -557,7 +556,7 @@ if st.session_state.analysis_done and st.session_state.df_result is not None:
                                 st.session_state.selected_symbol = symbol
                                 st.session_state.chart_source = 'faller'
                                 st.rerun()
-                # === [수정된 부분 끝] ===
+                # ==================== [여기까지 교체] ====================
 
         if st.session_state.selected_symbol and st.session_state.chart_source == 'faller':
             st.success(f"**📊 {st.session_state.selected_symbol} 미니 차트 (하락 Top 30)**")
