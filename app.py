@@ -10,13 +10,9 @@ st.set_page_config(page_title="CMC 카테고리 분석", layout="wide")
 st.title("🔥 CoinMarketCap - 카테고리별 24h 상승률 순위 + 미니 차트 (통합 시세 데이터)")
 
 # ================== 🔑 API 키 설정 ==================
-# 1. 코인마켓캡 API 설정
 CMC_API_KEY = "8135c5b9fcb545f9b1bb7ded2dd77bc1"
 CMC_HEADERS = {'Accepts': 'application/json', 'X-CMC_PRO_API_KEY': CMC_API_KEY}
 
-# 2. 크립토컴페어 API 설정 (★ 웹 배포 시 차단 안 됨 / 자잘한 알트코인 완벽 커버)
-# 발급받으신 크립토컴페어 API 키를 아래에 입력해주세요. 
-# 빈 값("")으로 두어도 하루 제한된 횟수 내에서는 임시 작동합니다.
 CRYPTOCOMPARE_API_KEY = "431d2e36e0cb590d88f14b8fc1a8167a3f235b64e6ece20cd5ab7de050aa232c"
 
 # ================== 📊 Plotly 차트 생성 함수 ==================
@@ -80,14 +76,9 @@ def create_relative_candle(df_base, df_compare, title=""):
 # ================== 📉 차트 데이터 전담: CryptoCompare API ==================
 @st.cache_data(ttl=600)
 def fetch_futures_ohlcv(symbol):
-    # --- 1차 시도: CryptoCompare API ---
     try:
         url = "https://min-api.cryptocompare.com/data/v2/histoday"
-        params = {
-            "fsym": symbol.upper(),
-            "tsym": "USD",
-            "limit": 400
-        }
+        params = {"fsym": symbol.upper(), "tsym": "USD", "limit": 400}
         if CRYPTOCOMPARE_API_KEY and CRYPTOCOMPARE_API_KEY != "YOUR_CRYPTOCOMPARE_API_KEY_HERE":
             params["api_key"] = CRYPTOCOMPARE_API_KEY
 
@@ -100,20 +91,16 @@ def fetch_futures_ohlcv(symbol):
             if not df.empty and 'close' in df.columns:
                 df['date'] = pd.to_datetime(df['time'], unit='s')
                 df = df.rename(columns={'volumeto': 'volume'}) 
-                
-                # 이동평균선(SMA) 연산
                 for p in [50, 100, 150, 200, 365]:
                     df[f'SMA{p}'] = df['close'].rolling(p).mean()
-                return df, 'cc'  # 👈 데이터와 출처('cc')를 함께 반환
+                return df, 'cc'
     except Exception:
         pass
 
-    # --- 2차 시도 (백업): Yahoo Finance (yfinance) ---
     try:
         import yfinance as yf
         ticker_symbol = f"{symbol.upper()}-USD"
         ticker = yf.Ticker(ticker_symbol)
-        
         df_raw = ticker.history(period="400d", interval="1d")
         
         if not df_raw.empty:
@@ -122,21 +109,16 @@ def fetch_futures_ohlcv(symbol):
                 'Date': 'date', 'Open': 'open', 'High': 'high', 
                 'Low': 'low', 'Close': 'close', 'Volume': 'volume'
             })
-            # yfinance 날짜 데이터에 시간대(timezone)가 섞여있을 수 있어 제거해 정합성을 맞춥니다.
             df['date'] = pd.to_datetime(df['date']).dt.tz_localize(None)
-            
-            # 이동평균선(SMA) 연산
             for p in [50, 100, 150, 200, 365]:
                 df[f'SMA{p}'] = df['close'].rolling(p).mean()
-            return df, 'yf'  # 👈 데이터와 출처('yf')를 함께 반환
+            return df, 'yf'
     except Exception:
         pass
 
     return None, None
 
-# ================== 차트 렌더링 공통 컴포넌트 ==================
 def fetch_specific_source(symbol, source):
-    """지정된 소스('cc' 또는 'yf')로만 강제로 데이터를 긁어오는 헬퍼 함수"""
     try:
         if source == 'cc':
             url = "https://min-api.cryptocompare.com/data/v2/histoday"
@@ -166,11 +148,9 @@ def fetch_specific_source(symbol, source):
 def render_mini_charts(symbol, key_suffix):
     try:
         with st.spinner(f"{symbol} 차트 불러오는 중..."):
-            # 1. 대상 코인 조회 및 출처 파악 ('cc' 또는 'yf')
             df, source = fetch_futures_ohlcv(symbol)
             
             if df is not None:
-                # 2. 메인 코인이 성공한 출처와 '동일한 출처'로 BTC, ETH 강제 조회!
                 df_eth = fetch_specific_source("ETH", source)
                 df_btc = fetch_specific_source("BTC", source)
                 
@@ -227,7 +207,7 @@ with filter_col1:
     if st.button("🚀분석 실행", type="primary", use_container_width=True):
         st.session_state.analysis_done = True
         st.session_state.selected_symbol = None 
-        st.session_state.df_result = None  # 재실행 시 데이터 갱신 유도
+        st.session_state.df_result = None
 
 # ================== 종목 검색 영역 ==================
 with filter_col2:
@@ -261,7 +241,8 @@ with filter_col2:
                 for idx, row in df_search.reset_index().iterrows():
                     symbol = row['심볼']
                     with btn_cols[idx % 8]:
-                        if st.button(f"{symbol}", key=f"search_btn_{symbol}", use_container_width=True):
+                        # [수정] key에 idx 추가 → 중복 심볼이어도 고유 키 보장
+                        if st.button(f"{symbol}", key=f"search_btn_{symbol}_{idx}", use_container_width=True):
                             st.session_state.selected_symbol = symbol
                             st.session_state.chart_source = 'search'
                             st.rerun()
@@ -365,14 +346,28 @@ if st.session_state.get('analysis_done') and st.session_state.df_result is None:
 
             st.session_state.df_result = pd.DataFrame(results).reset_index(drop=True)
             st.session_state.coin_details = coin_details
-            st.session_state.df_all = pd.DataFrame(top_coins_list)
+            
+            # [수정] df_all 생성 시 중복 심볼 제거
+            st.session_state.df_all = pd.DataFrame(top_coins_list).drop_duplicates(subset=['심볼']).reset_index(drop=True)
             
             if not st.session_state.df_all.empty:
-                # 상승률 상위 30개 (내림차순 정렬)
-                st.session_state.df_top_risers = st.session_state.df_all.sort_values(by='24h_상승률', ascending=False).head(30).reset_index(drop=True)
+                # [수정] risers에도 drop_duplicates 추가
+                st.session_state.df_top_risers = (
+                    st.session_state.df_all
+                    .sort_values(by='24h_상승률', ascending=False)
+                    .drop_duplicates(subset=['심볼'])
+                    .head(30)
+                    .reset_index(drop=True)
+                )
                 
-                # 하락률 상위 30개 (오름차순 정렬 - ★ 이 부분을 아래 코드로 정확히 고쳐주세요)
-                st.session_state.df_top_fallers = st.session_state.df_all.sort_values(by='24h_상승률', ascending=True).head(30).reset_index(drop=True)
+                # [수정] fallers에도 drop_duplicates 추가
+                st.session_state.df_top_fallers = (
+                    st.session_state.df_all
+                    .sort_values(by='24h_상승률', ascending=True)
+                    .drop_duplicates(subset=['심볼'])
+                    .head(30)
+                    .reset_index(drop=True)
+                )
             
             st.session_state.elapsed = time.time() - start_time
             st.success(f"✅ 분석 완료! ({st.session_state.elapsed:.1f}초)")
@@ -396,7 +391,6 @@ if st.session_state.analysis_done and st.session_state.df_result is not None:
             use_container_width=True, height=400
         )
 
-        # 1h 상세 카테고리
         st.subheader("📊 카테고리별 1h 상승률 순위")
         selected_category_1h = st.selectbox(
             "1h 상승률 기준 - 상세 카테고리 선택",
@@ -412,7 +406,6 @@ if st.session_state.analysis_done and st.session_state.df_result is not None:
                 use_container_width=True, height=400
             )
 
-        # 24h 상세 카테고리
         st.subheader("📊 카테고리별 24h 상승률 순위")
         selected_category_24h = st.selectbox(
             "24h 상승률 기준 - 상세 카테고리 선택",
@@ -447,7 +440,8 @@ if st.session_state.analysis_done and st.session_state.df_result is not None:
             for idx, row in df_risers.iterrows():
                 symbol = row['심볼']
                 with cols[idx % 10]:
-                    if st.button(symbol, key=f"rise_{symbol}", use_container_width=True):
+                    # [수정] key에 idx 추가
+                    if st.button(symbol, key=f"rise_{symbol}_{idx}", use_container_width=True):
                         st.session_state.selected_symbol = symbol
                         st.session_state.chart_source = 'riser'
                         st.rerun()
@@ -476,7 +470,8 @@ if st.session_state.analysis_done and st.session_state.df_result is not None:
             for idx, row in df_fallers.iterrows():
                 symbol = row['심볼']
                 with cols[idx % 10]:
-                    if st.button(symbol, key=f"fall_{symbol}", use_container_width=True):
+                    # [수정] key에 idx 추가
+                    if st.button(symbol, key=f"fall_{symbol}_{idx}", use_container_width=True):
                         st.session_state.selected_symbol = symbol
                         st.session_state.chart_source = 'faller'
                         st.rerun()
