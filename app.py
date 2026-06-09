@@ -544,7 +544,8 @@ if st.session_state.analysis_done and st.session_state.df_result is not None:
                 if not df_risers.empty:
                     st.dataframe(
                         style_crypto_table(df_risers[display_cols]),
-                        use_container_width=True,
+                        use_container_width=False,
+                        width=980,
                         height=420,
                         hide_index=True
                     )
@@ -565,7 +566,8 @@ if st.session_state.analysis_done and st.session_state.df_result is not None:
                 if not df_fallers.empty:
                     st.dataframe(
                         style_crypto_table(df_fallers[display_cols]),
-                        use_container_width=True,
+                        use_container_width=False,
+                        width=980,
                         height=420,
                         hide_index=True
                     )
