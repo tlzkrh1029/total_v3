@@ -1,3 +1,49 @@
+import streamlit as st
+
+# ==================== 커스텀 CSS (이미지 스타일 적용) ====================
+st.markdown("""
+<style>
+    /* 전체 배경 */
+    .stApp {
+        background: linear-gradient(135deg, #1a0f2e 0%, #0f0a1f 100%);
+    }
+    
+    /* 데이터프레임 카드 스타일 */
+    .stDataFrame {
+        background-color: #1f1633 !important;
+        border: 1px solid #3a2a5a !important;
+        border-radius: 16px !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+    }
+    
+    /* 테이블 헤더 */
+    .stDataFrame thead tr th {
+        background-color: #2a1f44 !important;
+        color: #c8b6ff !important;
+        font-weight: 600 !important;
+        border-bottom: 1px solid #4a3a6a !important;
+    }
+    
+    /* 테이블 셀 */
+    .stDataFrame tbody tr td {
+        color: #e0d4ff !important;
+        border-bottom: 1px solid #2a1f44 !important;
+    }
+    
+    /* 호버 효과 */
+    .stDataFrame tbody tr:hover {
+        background-color: #2a1f44 !important;
+    }
+    
+    /* 상승/하락 강조 */
+    .positive { color: #00ff9d !important; font-weight: 600; }
+    .negative { color: #ff6b6b !important; font-weight: 600; }
+</style>
+""", unsafe_allow_html=True)
+
+
+
 import time
 import pandas as pd
 import streamlit as st
@@ -423,10 +469,7 @@ if st.session_state.analysis_done and st.session_state.df_result is not None:
 
     with right_col:
         # ---- 상승률 Top 30 ----
-        st.subheader("🚀 24h 상승률 Top 30")
-        df_risers = st.session_state.df_top_risers
-        
-        # 숫자 포맷팅 함수 (1k, 1M, 1B)
+       # ==================== 공통: 숫자 포맷 함수 ====================
         def format_large_number(val):
             if pd.isna(val) or val == 0:
                 return "-"
@@ -443,60 +486,74 @@ if st.session_state.analysis_done and st.session_state.df_result is not None:
             except:
                 return str(val)
         
-        if not df_risers.empty:
-            # [수정] 표시할 컬럼 변경
-            display_cols = ['종목명', '심볼', '주요_카테고리', '1h_상승률', '24h_상승률', '시가총액', '24h_거래량']
-            
-            st.dataframe(
-                df_risers[display_cols].style.format({
-                    '1h_상승률': "{:.2f}%", 
+        
+        # ==================== 테이블 스타일링 함수 ====================
+        def style_crypto_table(df):
+            return (
+                df.style
+                .format({
+                    '1h_상승률': "{:.2f}%",
                     '24h_상승률': "{:.2f}%",
                     '시가총액': format_large_number,
                     '24h_거래량': format_large_number
-                }, na_rep="-")
-                .background_gradient(cmap='RdYlGn', subset=['24h_상승률']),
-                use_container_width=True, 
-                height=400, 
-                hide_index=True
+                })
+                .background_gradient(
+                    cmap='RdYlGn', 
+                    subset=['24h_상승률'],
+                    vmin=-25, 
+                    vmax=25
+                )
+                .set_properties(subset=['24h_상승률'], **{
+                    'font-weight': '700',
+                    'font-size': '15px'
+                })
+                .set_properties(subset=['시가총액', '24h_거래량'], **{
+                    'text-align': 'right',
+                    'color': '#b8a9ff'
+                })
+                .set_properties(subset=['종목명', '심볼'], **{
+                    'font-weight': '600'
+                })
             )
-            
-            st.markdown("**종목 클릭 → 아래에서 차트 확인**")
-            cols = st.columns(10)
-            for idx, row in df_risers.iterrows():
-                symbol = row['심볼']
-                with cols[idx % 10]:
-                    if st.button(symbol, key=f"rise_{symbol}_{idx}", use_container_width=True):
-                        st.session_state.selected_symbol = symbol
-                        st.session_state.chart_source = 'riser'
-                        st.rerun()
-
-        st.write("---")
-
-        # ---- 하락률 Top 30 ---- 
-       
+        
+        
+        # ==================== 🚀 24h 상승률 Top 30 ====================
+        st.subheader("🚀 24h 상승률 Top 30")
+        
+        display_cols = ['종목명', '심볼', '주요_카테고리', '1h_상승률', '24h_상승률', '시가총액', '24h_거래량']
+        
+        st.dataframe(
+            style_crypto_table(df_risers[display_cols]),
+            use_container_width=True,
+            height=420,
+            hide_index=True
+        )
+        
+        # 버튼 부분 (기존과 동일하게 유지)
+        st.markdown("**종목 클릭 → 아래에서 차트 확인**")
+        cols = st.columns(10)
+        for idx, row in df_risers.iterrows():
+            symbol = row['심볼']
+            with cols[idx % 10]:
+                if st.button(symbol, key=f"rise_{symbol}_{idx}", use_container_width=True):
+                    st.session_state.selected_symbol = symbol
+                    st.session_state.chart_source = 'riser'
+                    st.rerun()
+        
+        
+        # ==================== 📉 24h 하락률 Top 30 ====================
         st.subheader("📉 24h 하락률 Top 30")
+        
         df_fallers = st.session_state.get('df_top_fallers', pd.DataFrame())
         
-        # 숫자 포맷팅 함수 (1k, 1M, 1B) - 이미 위에 정의되어 있다면 생략 가능
-        
-        
         if not df_fallers.empty:
-            # [수정] 표시할 컬럼 변경 (상승 Top 30과 동일하게)
-            display_cols = ['종목명', '심볼', '주요_카테고리', '1h_상승률', '24h_상승률', '시가총액', '24h_거래량']
-            
             st.dataframe(
-                df_fallers[display_cols].style.format({
-                    '1h_상승률': "{:.2f}%", 
-                    '24h_상승률': "{:.2f}%",
-                    '시가총액': format_large_number,
-                    '24h_거래량': format_large_number
-                }, na_rep="-")
-                .background_gradient(cmap='coolwarm_r', subset=['24h_상승률']),
-                use_container_width=True, 
-                height=400, 
+                style_crypto_table(df_fallers[display_cols]),
+                use_container_width=True,
+                height=420,
                 hide_index=True
             )
-            
+        
             st.markdown("**종목 클릭 → 아래에서 차트 확인**")
             cols = st.columns(10)
             for idx, row in df_fallers.iterrows():
