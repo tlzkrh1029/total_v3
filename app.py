@@ -469,7 +469,7 @@ if st.session_state.analysis_done and st.session_state.df_result is not None:
 
     with right_col:
         # ---- 상승률 Top 30 ----
-       # ==================== 공통: 숫자 포맷 함수 ====================
+        # ==================== 공통 함수 ====================
         def format_large_number(val):
             if pd.isna(val) or val == 0:
                 return "-"
@@ -487,7 +487,6 @@ if st.session_state.analysis_done and st.session_state.df_result is not None:
                 return str(val)
         
         
-        # ==================== 테이블 스타일링 함수 ====================
         def style_crypto_table(df):
             return (
                 df.style
@@ -497,72 +496,68 @@ if st.session_state.analysis_done and st.session_state.df_result is not None:
                     '시가총액': format_large_number,
                     '24h_거래량': format_large_number
                 })
-                .background_gradient(
-                    cmap='RdYlGn', 
-                    subset=['24h_상승률'],
-                    vmin=-25, 
-                    vmax=25
-                )
-                .set_properties(subset=['24h_상승률'], **{
-                    'font-weight': '700',
-                    'font-size': '15px'
-                })
-                .set_properties(subset=['시가총액', '24h_거래량'], **{
-                    'text-align': 'right',
-                    'color': '#b8a9ff'
-                })
-                .set_properties(subset=['종목명', '심볼'], **{
-                    'font-weight': '600'
-                })
+                .background_gradient(cmap='RdYlGn', subset=['24h_상승률'], vmin=-25, vmax=25)
+                .set_properties(subset=['24h_상승률'], **{'font-weight': '700', 'font-size': '15px'})
+                .set_properties(subset=['시가총액', '24h_거래량'], **{'text-align': 'right', 'color': '#b8a9ff'})
+                .set_properties(subset=['종목명', '심볼'], **{'font-weight': '600'})
             )
         
         
-        # ==================== 🚀 24h 상승률 Top 30 ====================
-        st.subheader("🚀 24h 상승률 Top 30")
+        # ==================== 메인 화면 - 오른쪽 컬럼 ====================
+        if st.session_state.analysis_done and st.session_state.df_result is not None:
+            left_col, right_col = st.columns([1, 1])
         
-        display_cols = ['종목명', '심볼', '주요_카테고리', '1h_상승률', '24h_상승률', '시가총액', '24h_거래량']
+            with left_col:
+                # ... (왼쪽 카테고리 부분은 그대로 유지)
         
-        st.dataframe(
-            style_crypto_table(df_risers[display_cols]),
-            use_container_width=True,
-            height=420,
-            hide_index=True
-        )
+            with right_col:
+                # === [수정된 부분 시작] ===
+                df_risers = st.session_state.df_top_risers
+                df_fallers = st.session_state.get('df_top_fallers', pd.DataFrame())
+                display_cols = ['종목명', '심볼', '주요_카테고리', '1h_상승률', '24h_상승률', '시가총액', '24h_거래량']
         
-        # 버튼 부분 (기존과 동일하게 유지)
-        st.markdown("**종목 클릭 → 아래에서 차트 확인**")
-        cols = st.columns(10)
-        for idx, row in df_risers.iterrows():
-            symbol = row['심볼']
-            with cols[idx % 10]:
-                if st.button(symbol, key=f"rise_{symbol}_{idx}", use_container_width=True):
-                    st.session_state.selected_symbol = symbol
-                    st.session_state.chart_source = 'riser'
-                    st.rerun()
+                # ---- 🚀 24h 상승률 Top 30 ----
+                st.subheader("🚀 24h 상승률 Top 30")
         
+                if not df_risers.empty:
+                    st.dataframe(
+                        style_crypto_table(df_risers[display_cols]),
+                        use_container_width=True,
+                        height=420,
+                        hide_index=True
+                    )
         
-        # ==================== 📉 24h 하락률 Top 30 ====================
-        st.subheader("📉 24h 하락률 Top 30")
+                    st.markdown("**종목 클릭 → 아래에서 차트 확인**")
+                    cols = st.columns(10)
+                    for idx, row in df_risers.iterrows():
+                        symbol = row['심볼']
+                        with cols[idx % 10]:
+                            if st.button(symbol, key=f"rise_{symbol}_{idx}", use_container_width=True):
+                                st.session_state.selected_symbol = symbol
+                                st.session_state.chart_source = 'riser'
+                                st.rerun()
         
-        df_fallers = st.session_state.get('df_top_fallers', pd.DataFrame())
+                # ---- 📉 24h 하락률 Top 30 ----
+                st.subheader("📉 24h 하락률 Top 30")
         
-        if not df_fallers.empty:
-            st.dataframe(
-                style_crypto_table(df_fallers[display_cols]),
-                use_container_width=True,
-                height=420,
-                hide_index=True
-            )
+                if not df_fallers.empty:
+                    st.dataframe(
+                        style_crypto_table(df_fallers[display_cols]),
+                        use_container_width=True,
+                        height=420,
+                        hide_index=True
+                    )
         
-            st.markdown("**종목 클릭 → 아래에서 차트 확인**")
-            cols = st.columns(10)
-            for idx, row in df_fallers.iterrows():
-                symbol = row['심볼']
-                with cols[idx % 10]:
-                    if st.button(symbol, key=f"fall_{symbol}_{idx}", use_container_width=True):
-                        st.session_state.selected_symbol = symbol
-                        st.session_state.chart_source = 'faller'
-                        st.rerun()
+                    st.markdown("**종목 클릭 → 아래에서 차트 확인**")
+                    cols = st.columns(10)
+                    for idx, row in df_fallers.iterrows():
+                        symbol = row['심볼']
+                        with cols[idx % 10]:
+                            if st.button(symbol, key=f"fall_{symbol}_{idx}", use_container_width=True):
+                                st.session_state.selected_symbol = symbol
+                                st.session_state.chart_source = 'faller'
+                                st.rerun()
+                # === [수정된 부분 끝] ===
 
         if st.session_state.selected_symbol and st.session_state.chart_source == 'faller':
             st.success(f"**📊 {st.session_state.selected_symbol} 미니 차트 (하락 Top 30)**")
