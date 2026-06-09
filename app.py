@@ -1,5 +1,24 @@
 import streamlit as st
 
+st.markdown("""
+<style>
+    .stDataFrame {
+        background-color: #1f1633 !important;
+        border: 1px solid #3a2a5a !important;
+        border-radius: 16px !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    .stDataFrame thead tr th {
+        background-color: #2a1f44 !important;
+        color: #c8b6ff !important;
+        font-weight: 600 !important;
+    }
+    .stDataFrame tbody tr:hover {
+        background-color: #2a1f44 !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # ==================== 커스텀 CSS (이미지 스타일 적용) ====================
 st.markdown("""
 <style>
