@@ -472,17 +472,29 @@ if st.session_state.analysis_done and st.session_state.df_result is not None:
 
         st.write("---")
 
-        # ---- 하락률 Top 30 ----
+        # ---- 하락률 Top 30 ---- 
+       
         st.subheader("📉 24h 하락률 Top 30")
         df_fallers = st.session_state.get('df_top_fallers', pd.DataFrame())
+        
+        # 숫자 포맷팅 함수 (1k, 1M, 1B) - 이미 위에 정의되어 있다면 생략 가능
+        
+        
         if not df_fallers.empty:
-            display_cols = ['종목명', '심볼', '주요_카테고리', '1h_상승률', '24h_상승률', '/btc_1h', '/btc_24h', '/eth_1h', '/eth_24h']
+            # [수정] 표시할 컬럼 변경 (상승 Top 30과 동일하게)
+            display_cols = ['종목명', '심볼', '주요_카테고리', '1h_상승률', '24h_상승률', '시가총액', '24h_거래량']
+            
             st.dataframe(
                 df_fallers[display_cols].style.format({
-                    '1h_상승률': "{:.2f}%", '24h_상승률': "{:.2f}%",
-                    '/btc_1h': "{:.2f}%", '/btc_24h': "{:.2f}%", '/eth_1h': "{:.2f}%", '/eth_24h': "{:.2f}%"
-                }, na_rep="-").background_gradient(cmap='coolwarm_r', subset=['24h_상승률']),
-                use_container_width=True, height=400, hide_index=True
+                    '1h_상승률': "{:.2f}%", 
+                    '24h_상승률': "{:.2f}%",
+                    '시가총액': format_large_number,
+                    '24h_거래량': format_large_number
+                }, na_rep="-")
+                .background_gradient(cmap='coolwarm_r', subset=['24h_상승률']),
+                use_container_width=True, 
+                height=400, 
+                hide_index=True
             )
             
             st.markdown("**종목 클릭 → 아래에서 차트 확인**")
@@ -490,7 +502,6 @@ if st.session_state.analysis_done and st.session_state.df_result is not None:
             for idx, row in df_fallers.iterrows():
                 symbol = row['심볼']
                 with cols[idx % 10]:
-                    # [수정] key에 idx 추가
                     if st.button(symbol, key=f"fall_{symbol}_{idx}", use_container_width=True):
                         st.session_state.selected_symbol = symbol
                         st.session_state.chart_source = 'faller'
